@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, Cpu, Film, Sparkles, Download, Scissors } from "lucide-react";
+import { Check, Cpu, Film, Sparkles, Download, Scissors, Upload, Music, MessageSquare } from "lucide-react";
 
 interface ProgressStepsProps {
   step: number;
@@ -11,11 +11,12 @@ interface ProgressStepsProps {
 
 export function ProgressSteps({ step, progress, status, error }: ProgressStepsProps) {
   const steps = useMemo(() => [
-    { title: "Input Verified", desc: "Verifying YouTube source metadata", icon: Check },
-    { title: "AI Analysis", desc: "LLM decoding key viral and audio hooks", icon: Sparkles },
-    { title: "FFmpeg Cut", desc: "Slicing high-energy 30s stream with millisecond accuracy", icon: Scissors },
-    { title: "Burn Subtitles", desc: "Whisper speech-to-text dynamic timestamp sync", icon: Film },
-    { title: "Finished", desc: "Synthesized ClipAI MP4 export package ready", icon: Download },
+    { title: "Uploading video", desc: "Transferring file stream to server", icon: Upload },
+    { title: "Extracting audio", desc: "Converting stream to mono WAV", icon: Music },
+    { title: "Finding best 30s", desc: "Scanning RMS audio energy thresholds", icon: Scissors },
+    { title: "Transcribing speech", desc: "Whisper speech-to-text alignment", icon: MessageSquare },
+    { title: "Burning captions", desc: "Applying FFmpeg styled burn-in text", icon: Film },
+    { title: "Done!", desc: "Clip is ready for download", icon: Check },
   ], []);
 
   // Generate mock audio waves for the waveform visuality
@@ -61,7 +62,7 @@ export function ProgressSteps({ step, progress, status, error }: ProgressStepsPr
         </div>
 
         {/* Steps track list */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 relative" id="steps-track-grid">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-6 relative" id="steps-track-grid">
           {steps.map((s, idx) => {
             const stepNum = idx + 1;
             const isCompleted = stepNum < step || status === "completed";

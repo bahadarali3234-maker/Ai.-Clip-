@@ -2,16 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Sparkles, 
-  Video, 
   History, 
-  Cpu, 
-  HelpCircle, 
   Trash2, 
   CheckCircle, 
   Flame, 
-  Clapperboard 
+  Clapperboard,
+  Film
 } from "lucide-react";
-import { URLInput } from "./components/URLInput";
+import { VideoUpload } from "./components/VideoUpload";
 import { ProgressSteps } from "./components/ProgressSteps";
 import { VideoPreview } from "./components/VideoPreview";
 import { DownloadButton } from "./components/DownloadButton";
@@ -19,7 +17,7 @@ import { JobResult, JobStatusResponse } from "./types";
 
 interface SavedClip {
   jobId: string;
-  url: string;
+  url: string; // Used to store filename
   title: string;
   timestamp: string;
   result: JobResult;
@@ -32,6 +30,10 @@ export default function App() {
   const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<JobResult | null>(null);
+
+  // File metadata for active process
+  const [activeFileName, setActiveFileName] = useState<string>("");
+  const [activeFileSize, setActiveFileSize] = useState<string>("");
 
   // History state loaded from client storage
   const [savedClips, setSavedClips] = useState<SavedClip[]>([]);
@@ -80,39 +82,35 @@ export default function App() {
         console.error("Polling fetch failure:", err);
         setError("Network connection issue. Retrying sync...");
       }
-    }, 1200);
+    }, 1500); // Polling every 1.5 seconds conforming to specification
   };
 
-  const handleSubmitUrl = async (url: string) => {
+  const handleUploadStart = (fileName: string, fileSizeStr: string) => {
     setError(null);
     setResult(null);
     setJobId(null);
     setStatus("processing");
-    setStep(1);
-    setProgress(5);
+    setStep(1); // Step 1: Uploading video
+    setProgress(0);
+    setActiveFileName(fileName);
+    setActiveFileSize(fileSizeStr);
+  };
 
-    try {
-      const response = await fetch("/api/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
+  const handleUploadProgress = (percentage: number) => {
+    // Standardize stage 1 upload progress display
+    setProgress(percentage);
+  };
 
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || "Failed initiating extraction pipeline.");
-      }
+  const handleUploadSuccess = (newJobId: string) => {
+    setJobId(newJobId);
+    setStep(2); // Begin step 2: Extracting audio on server
+    setProgress(20);
+    startPolling(newJobId);
+  };
 
-      const data = await response.json();
-      setJobId(data.job_id);
-      
-      // Begin background polling
-      startPolling(data.job_id);
-    } catch (err: any) {
-      console.error(err);
-      setStatus("failed");
-      setError(err?.message || "Internal server error occurred.");
-    }
+  const handleUploadError = (errorMsg: string) => {
+    setStatus("failed");
+    setError(errorMsg);
   };
 
   const addToHistory = (id: string, clipResult: JobResult) => {
@@ -122,7 +120,7 @@ export default function App() {
 
       const newClip: SavedClip = {
         jobId: id,
-        url: urlOfActiveJob || "https://youtube.com/watch",
+        url: activeFileName || "Uploaded video",
         title: clipResult.title,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         result: clipResult,
@@ -144,10 +142,12 @@ export default function App() {
     
     setJobId(clip.jobId);
     setStatus("completed");
-    setStep(5);
+    setStep(6);
     setProgress(100);
     setError(null);
     setResult(clip.result);
+    setActiveFileName(clip.url);
+    setActiveFileSize("");
   };
 
   const handleClearHistory = () => {
@@ -159,14 +159,6 @@ export default function App() {
     }
   };
 
-  // Find URL of the active job, tracking fallback URLs
-  const [urlOfActiveJob, setUrlOfActiveJob] = useState("");
-  useEffect(() => {
-    if (status === "processing") {
-      // Clean temporary records
-    }
-  }, [status]);
-
   // Clean timeouts on unmount
   useEffect(() => {
     return () => {
@@ -175,7 +167,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050508] relative overflow-x-hidden text-gray-100 flex flex-col justify-between" id="clipai-app-root">
+    <div className="min-h-screen bg-[#07070f] relative overflow-x-hidden text-gray-100 flex flex-col justify-between" id="clipai-app-root">
       
       {/* Decorative ambient neon overlays */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-900/10 rounded-full blur-[160px] pointer-events-none" />
@@ -193,7 +185,7 @@ export default function App() {
             className="inline-flex items-center gap-1.5 px-3 py-1 bg-violet-600/10 rounded-full text-violet-400 border border-violet-500/20 text-xs font-semibold uppercase tracking-wider font-mono shadow-[0_0_20px_rgba(124,58,237,0.15)]"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Empowered by Gemini LLM & Whisper AI
+            Local Video Intel & Automated Synthesis
           </motion.div>
 
           <motion.h1
@@ -211,19 +203,22 @@ export default function App() {
             transition={{ delay: 0.2, duration: 0.6 }}
             className="text-base md:text-lg text-gray-400 max-w-2xl mx-auto font-sans leading-relaxed"
           >
-            Transform raw, lengthy YouTube videos into high-impact, kinetic-captioned, 30-second shorts in seconds. Autodetect hooks, transcribe voice, and export instantly.
+            Transform raw, lengthy local videos into high-impact, kinetic-captioned, 30-second shorts in seconds. Autodetect hooks, transcribe voice, and export instantly.
           </motion.p>
         </header>
 
         {/* Dashboard grid layout */}
         <main className="space-y-10">
           
-          {/* Main Action Form Input */}
+          {/* Main Action Uploader Form */}
           <div className="space-y-10">
-            <URLInput onSubmit={(url) => {
-              setUrlOfActiveJob(url);
-              handleSubmitUrl(url);
-            }} isLoading={status === "processing"} />
+            <VideoUpload 
+              onUploadStart={handleUploadStart}
+              onUploadProgress={handleUploadProgress}
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+              isLoading={status === "processing"} 
+            />
 
             {/* Pipeline Stage Indicators */}
             <AnimatePresence mode="wait">
@@ -262,7 +257,7 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          {/* History / Previous clips tracker sidebar/bottom tray */}
+          {/* History / Previous clips tracker bottom tray */}
           {savedClips.length > 0 && (
             <motion.section
               initial={{ opacity: 0 }}
@@ -292,8 +287,8 @@ export default function App() {
                     onClick={() => handleSelectHistory(clip)}
                     className={`flex flex-col text-left p-4 rounded-xl border relative overflow-hidden group/item cursor-pointer transition-all ${
                       jobId === clip.jobId
-                        ? "bg-violet-600/10 border-violet-500 text-white"
-                        : "bg-[#0b0b10] border-white/5 text-gray-400 hover:bg-[#11111a]"
+                        ? "bg-violet-600/10 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.15)]"
+                        : "bg-[#0f0f1a] border-white/5 text-gray-400 hover:bg-[#151525]"
                     }`}
                     id={`saved-clip-card-${clip.jobId}`}
                   >
@@ -307,7 +302,7 @@ export default function App() {
                     <h4 className="text-xs font-semibold text-white mt-2 mb-1 truncate w-full">
                       {clip.title}
                     </h4>
-                    <p className="text-[10px] text-gray-500 truncate w-full font-mono mt-0.5">
+                    <p className="text-[10px] text-gray-400 truncate w-full font-mono mt-0.5">
                       {clip.url}
                     </p>
                     {jobId === clip.jobId && (

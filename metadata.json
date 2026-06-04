@@ -1,6 +1,6 @@
 {
   "name": "ClipAI",
-  "description": "AI-powered video clip extractor and editor. Paste a YouTube URL, detect the best highlights, transcribe audio, and burn stylized captions into downloadable clips.",
+  "description": "AI-powered video clip extractor and editor. Upload a raw video file, detect the best 30s audio peak highlights, transcribe with Whisper, and burn stylized captions into downloadable clips.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
